@@ -1,4 +1,5 @@
 const fs = require('fs')
+const crypto = require('crypto')
 const cp = require('child_process')
 const os = require('os')
 
@@ -100,13 +101,25 @@ async function downloadWine(version) {
     console.log(`downloading wine version ${versionObject.version}`)
 
     var buffer = Buffer.from(await (await fetch(versionObject.url)).arrayBuffer())
+
+    console.log('verifying...')
+    var hashSum = crypto.createHash('sha1')
+    hashSum.update(buffer)
+    var hash = hashSum.digest('hex')
+    if(hash != versionObject.sha1sum) {
+        console.log('sha1 sum mismatch (try again maybe?)')
+        fs.rmSync(`${tempDirPath}/${fileName}`)
+        return console.log('exiting')
+    }
+
     var fileName = versionObject.url.split('/').pop()
     fs.writeFileSync(`${tempDirPath}/${fileName}`, buffer)
+    
 
     console.log('extracting wine...')
     fs.mkdirSync(wineInstallDir)
     cp.execSync(`tar -xvf ${tempDirPath}/${fileName} -C ${wineInstallDir}`)
-    fs.rmSync(`${tempDir}/${fileName}`)
+    fs.rmSync(`${tempDirPath}/${fileName}`)
 
     console.log(`done! downloaded to: ${wineInstallDir}`)
 }
